@@ -1,1 +1,5 @@
 .q
+.env
+coverage.out
+tinyfish-mcp
+tinyfish-mcp.exe
