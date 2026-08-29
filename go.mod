@@ -2,10 +2,7 @@ module github.com/snowmerak/tinyfish-go
 
 go 1.27.0
 
-require (
-	github.com/modelcontextprotocol/go-sdk v1.6.1
-	golang.org/x/time v0.15.0
-)
+require github.com/modelcontextprotocol/go-sdk v1.6.1
 
 require (
 	github.com/google/jsonschema-go v0.4.3 // indirect

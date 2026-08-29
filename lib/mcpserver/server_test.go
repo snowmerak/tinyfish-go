@@ -17,6 +17,10 @@ func TestServerToolsAndCalls(t *testing.T) {
 	t.Parallel()
 
 	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path == "/usage" {
+			fmt.Fprint(writer, `{"items":[{"id":"fetch-1","url":"https://tinyfish.ai","final_url":"https://tinyfish.ai","title":"TinyFish","description":null,"language":"en","author":null,"published_date":null,"format":"markdown","status":"completed","request_origin":"mcp","request_id":"request-1","text_length":9,"links_count":0,"image_links_count":0,"latency_ms":1,"created_at":"2026-08-29T00:00:00Z","error":null}],"total":1,"limit":100,"page":1,"total_pages":1,"has_more":false}`)
+			return
+		}
 		switch request.Method {
 		case http.MethodGet:
 			fmt.Fprint(writer, `{"query":"tinyfish","results":[{"position":1,"site_name":"tinyfish.ai","title":"TinyFish","snippet":"Web APIs","url":"https://tinyfish.ai"}],"total_results":1,"page":0}`)
@@ -65,7 +69,7 @@ func TestServerToolsAndCalls(t *testing.T) {
 	for _, tool := range tools.Tools {
 		names = append(names, tool.Name)
 	}
-	if !slices.Contains(names, "search") || !slices.Contains(names, "fetch_content") {
+	if !slices.Contains(names, "search") || !slices.Contains(names, "fetch_content") || !slices.Contains(names, "list_fetch_usage") {
 		t.Fatalf("tool names = %v", names)
 	}
 
@@ -115,6 +119,28 @@ func TestServerToolsAndCalls(t *testing.T) {
 	}
 	if len(fetchOutput.Results) != 1 || fetchOutput.Results[0].Text != "page text" {
 		t.Errorf("unexpected fetch output: %s", fetchJSON)
+	}
+
+	usageResult, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "list_fetch_usage",
+		Arguments: map[string]any{"status": "completed"},
+	})
+	if err != nil {
+		t.Fatalf("CallTool(list_fetch_usage) error = %v", err)
+	}
+	if usageResult.IsError {
+		t.Fatalf("CallTool(list_fetch_usage) returned tool error: %+v", usageResult)
+	}
+	usageJSON, err := json.Marshal(usageResult.StructuredContent)
+	if err != nil {
+		t.Fatalf("marshal usage output: %v", err)
+	}
+	var usageOutput tinyfish.FetchUsageResponse
+	if err := json.Unmarshal(usageJSON, &usageOutput); err != nil {
+		t.Fatalf("decode usage output: %v", err)
+	}
+	if usageOutput.Total != 1 || len(usageOutput.Items) != 1 {
+		t.Errorf("unexpected usage output: %s", usageJSON)
 	}
 }
 

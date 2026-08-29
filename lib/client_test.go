@@ -120,6 +120,75 @@ func TestFetchGetContents(t *testing.T) {
 	}
 }
 
+func TestFetchListUsage(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet {
+			t.Errorf("method = %s, want GET", request.Method)
+		}
+		if request.URL.Path != "/usage" {
+			t.Errorf("path = %q, want /usage", request.URL.Path)
+		}
+		query := request.URL.Query()
+		assertQueryValue(t, query.Get("start_after"), "2026-08-01T00:00:00Z")
+		assertQueryValue(t, query.Get("end_before"), "2026-08-29T12:00:00Z")
+		assertQueryValue(t, query.Get("status"), "completed")
+		assertQueryValue(t, query.Get("limit"), "25")
+		assertQueryValue(t, query.Get("page"), "2")
+
+		writer.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(writer, `{
+            "items":[{
+                "id":"fetch-1",
+                "url":"https://example.com",
+                "final_url":"https://example.com",
+                "title":"Example",
+                "description":null,
+                "language":"en",
+                "author":null,
+                "published_date":null,
+                "format":"markdown",
+                "status":"completed",
+                "request_origin":"api",
+                "request_id":"request-1",
+                "text_length":123,
+                "links_count":2,
+                "image_links_count":1,
+                "latency_ms":42.5,
+                "created_at":"2026-08-20T10:00:00Z",
+                "error":null
+            }],
+            "total":42,
+            "limit":25,
+            "page":2,
+            "total_pages":2,
+            "has_more":false
+        }`)
+	}))
+	defer server.Close()
+
+	start := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
+	client := newTestClient(t, server.URL, server.URL)
+	response, err := client.Fetch.ListUsage(context.Background(), FetchUsageRequest{
+		StartAfter: &start,
+		EndBefore:  &end,
+		Status:     FetchUsageCompleted,
+		Limit:      25,
+		Page:       2,
+	})
+	if err != nil {
+		t.Fatalf("ListUsage() error = %v", err)
+	}
+	if response.Total != 42 || len(response.Items) != 1 {
+		t.Fatalf("unexpected response: %+v", response)
+	}
+	if response.Items[0].ID != "fetch-1" || response.Items[0].CreatedAt.IsZero() {
+		t.Errorf("unexpected usage item: %+v", response.Items[0])
+	}
+}
+
 func TestAPIError(t *testing.T) {
 	t.Parallel()
 
@@ -220,6 +289,9 @@ func TestRequestValidation(t *testing.T) {
 		IfNoneMatch: `"etag"`,
 	}); err == nil {
 		t.Error("Fetch.GetContents() accepted conditional batch")
+	}
+	if _, err := client.Fetch.ListUsage(context.Background(), FetchUsageRequest{Limit: 1001}); err == nil {
+		t.Error("Fetch.ListUsage() accepted limit over 1000")
 	}
 }
 

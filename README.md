@@ -64,7 +64,8 @@ for _, page := range result.Results {
 `FetchResponse` can contain successful `Results` and per-URL `Errors` at the
 same time. HTTP-level failures are returned as `*tinyfish.APIError`.
 
-The client applies these proactive defaults per instance:
+The client applies these proactive defaults per instance using an exact,
+weighted sliding window over the previous 60 seconds:
 
 - Search: 30 requests per minute
 - Fetch: 150 URLs per minute; a ten-URL request consumes ten units
@@ -75,12 +76,23 @@ The API remains the source of truth. Use `tinyfish.WithLimits`,
 `tinyfish.WithoutRateLimiting`, and `tinyfish.WithRetryPolicy` to customize the
 local behavior.
 
+Fetch usage history is available without consuming the Fetch URL limiter:
+
+```go
+usage, err := client.Fetch.ListUsage(ctx, tinyfish.FetchUsageRequest{
+	Status: tinyfish.FetchUsageCompleted,
+	Limit:  100,
+	Page:   1,
+})
+```
+
 ## MCP server
 
 The root `main.go` is a thin stdio MCP entry point. It exposes:
 
 - `search`
 - `fetch_content`
+- `list_fetch_usage`
 
 Build it with:
 

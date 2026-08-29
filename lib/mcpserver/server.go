@@ -72,6 +72,23 @@ func New(client *tinyfish.Client, version string) (*mcp.Server, error) {
 		return nil, output, nil
 	})
 
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_fetch_usage",
+		Title:       "List Fetch usage",
+		Description: "List paginated Fetch operation metadata with optional time and status filters. Extracted page text is not included.",
+		Annotations: &mcp.ToolAnnotations{
+			Title:         "List Fetch usage",
+			ReadOnlyHint:  readOnly,
+			OpenWorldHint: &openWorld,
+		},
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, input tinyfish.FetchUsageRequest) (*mcp.CallToolResult, tinyfish.FetchUsageResponse, error) {
+		response, err := client.Fetch.ListUsage(ctx, input)
+		if err != nil {
+			return nil, tinyfish.FetchUsageResponse{}, err
+		}
+		return nil, *response, nil
+	})
+
 	return server, nil
 }
 

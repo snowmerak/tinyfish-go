@@ -11,8 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"golang.org/x/time/rate"
 )
 
 func (client *Client) doJSON(
@@ -22,7 +20,7 @@ func (client *Client) doJSON(
 	requestBody any,
 	responseBody any,
 	timeout time.Duration,
-	limiter *rate.Limiter,
+	limiter requestLimiter,
 	weight int,
 ) error {
 	if ctx == nil {

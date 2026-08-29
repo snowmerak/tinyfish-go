@@ -4,8 +4,7 @@ import (
 	"errors"
 	"os"
 	"strings"
-
-	"golang.org/x/time/rate"
+	"time"
 )
 
 // Client is a TinyFish API client.
@@ -14,8 +13,8 @@ type Client struct {
 	Fetch  *FetchService
 
 	config        config
-	searchLimiter *rate.Limiter
-	fetchLimiter  *rate.Limiter
+	searchLimiter requestLimiter
+	fetchLimiter  requestLimiter
 }
 
 // New constructs a TinyFish client. By default, the API key is read from
@@ -40,14 +39,8 @@ func New(options ...Option) (*Client, error) {
 
 	client := &Client{config: cfg}
 	if !cfg.limits.Disabled {
-		client.searchLimiter = rate.NewLimiter(
-			rate.Limit(float64(cfg.limits.SearchRequestsPerMinute)/60),
-			1,
-		)
-		client.fetchLimiter = rate.NewLimiter(
-			rate.Limit(float64(cfg.limits.FetchURLsPerMinute)/60),
-			10,
-		)
+		client.searchLimiter = newSlidingWindowLimiter(cfg.limits.SearchRequestsPerMinute, time.Minute)
+		client.fetchLimiter = newSlidingWindowLimiter(cfg.limits.FetchURLsPerMinute, time.Minute)
 	}
 
 	client.Search = &SearchService{client: client}
